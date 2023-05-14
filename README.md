@@ -1,3 +1,7 @@
+URL for extension's git repository
+https://github.com/new-sankaku/stable-diffusion-webui-metadata-marker.git
+
+
 --
 The output image will have generation information rendered on it. 
 It is designed mainly for verification purposes. 
