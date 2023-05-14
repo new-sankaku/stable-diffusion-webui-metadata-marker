@@ -1,7 +1,4 @@
 --
-URL for extension's git repository.
-https://github.com/new-sankaku/stable-diffusion-webui-metadata-marker.git
-
 The output image will have generation information rendered on it. 
 It is designed mainly for verification purposes. 
 For example, you can verify differences that arise from various prompts. 
@@ -18,9 +15,6 @@ I will accommodate your request if possible.
 
 
 ---
-ExtensionのGIT URLです。
-https://github.com/new-sankaku/stable-diffusion-webui-metadata-marker.git
-
 出力する画像に生成時の情報を描画します。
 主に検証用途で使われることを想定しています。
 例えば、Promptの違いによる差を確認することができます。

@@ -128,7 +128,7 @@ class MetadataMarkerScript(scripts.Script):
         
         text = ""
         if prompt_checkbox:
-            text = text + "Prompt: " + str(p.prompt)
+            text = text + ", Prompt: " + str(p.prompt)
         
         if negative_prompt_checkbox:
             text = text + ", Negative prompt: " + str(p.negative_prompt)
@@ -155,7 +155,8 @@ class MetadataMarkerScript(scripts.Script):
             text = text + ", Model : " + str(shared.sd_model.sd_checkpoint_info.model_name)
         
         text = text.strip()
-        
+        text = text.strip(",")
+        text = text.strip()
 
         max_width = image_copy.width
         lines = []
