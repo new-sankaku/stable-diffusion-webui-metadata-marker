@@ -75,19 +75,25 @@ class MetadataMarkerScript(scripts.Script):
                 )
             with gr.Row():
                 meta_data_display = gr.inputs.Dropdown(label="MetaData Display Position", choices=["Overlay", "Top", "Bottom", "Left", "Right"], default="Overlay")
-
-
-                
+                font_size_input = gr.inputs.Textbox(lines=1, label='Font Size', default="")
+    
         return [prompt_checkbox, negative_prompt_checkbox, steps_checkbox, 
                 sampler_checkbox, cfg_scale_checkbox, seed_checkbox, 
                 size_checkbox, model_checkbox, model_hash_checkbox, 
-                output_image_checkbox, meta_data_display]
+                output_image_checkbox, meta_data_display, font_size_input]
+    
+
+
+
+
+
 
     #p  is StableDiffusionProcessing
     #pp is PostprocessImageArgs
     # The original function now calls the new functions for each task
     def postprocess_image(self, p, pp, prompt_checkbox, negative_prompt_checkbox, steps_checkbox, 
-                          sampler_checkbox, cfg_scale_checkbox, seed_checkbox, size_checkbox, model_checkbox, model_hash_checkbox, output_image_checkbox, meta_data_display):
+                          sampler_checkbox, cfg_scale_checkbox, seed_checkbox, size_checkbox, model_checkbox, model_hash_checkbox, output_image_checkbox, meta_data_display,
+                          font_size_input):
     
         if not output_image_checkbox:
             return;
@@ -101,7 +107,7 @@ class MetadataMarkerScript(scripts.Script):
         
         font_path = self.get_font_path()
         imageSize = image_copy.width * image_copy.height
-        fontSize = self.get_font_size(imageSize)
+        fontSize = self.get_font_size(imageSize, font_size_input)
 
         font = self.get_font(font_path, fontSize)
         
@@ -148,8 +154,6 @@ class MetadataMarkerScript(scripts.Script):
         print()
         print("max_line_length:" + str(max_line_length))
         
-        print("font_width:" + str(font_width))
-        print("font_height:" + str(font_height))
         
         print("text_width:" + str(text_width))
         print("text_height:" + str(text_height))
@@ -181,9 +185,24 @@ class MetadataMarkerScript(scripts.Script):
             font_path = '/System/Library/Fonts/Hiragino Sans Rounded W4.ttc'
         return font_path
     
+    
+    
+    def check_input(self, input_value):
+        if not input_value.isdigit():
+            print("Invalid input font size: Only numeric values are allowed. Set automatically.!!")
+            return 0
+        else:
+            return int(input_value)
+
     # Function to get font size based on image size
-    def get_font_size(self, imageSize):
-        fontSize = 13;
+    def get_font_size(self, imageSize, font_size_input):
+
+        font_size_value = self.check_input(font_size_input)
+
+        if font_size_value != 0:
+            return font_size_value
+
+        fontSize = 13
         if (512*512 > imageSize):
             fontSize = 11
         elif (728*728 > imageSize):
@@ -199,6 +218,7 @@ class MetadataMarkerScript(scripts.Script):
         else:
             fontSize = 28
         return fontSize
+
     
     # Function to get font object
     def get_font(self, font_path, fontSize):
@@ -211,39 +231,46 @@ class MetadataMarkerScript(scripts.Script):
     # Function to construct the text string based on checkboxes
     def construct_text(self, p, prompt_checkbox, negative_prompt_checkbox, steps_checkbox, 
                           sampler_checkbox, cfg_scale_checkbox, seed_checkbox, size_checkbox, model_checkbox, model_hash_checkbox, shared):
-        text = ""
+        first_text = ""
         if prompt_checkbox:
-            text = text + ", Prompt: " + str(p.prompt)
+            first_text = first_text + "Prompt: " + str(p.prompt) + "\n\n"
 
         if negative_prompt_checkbox:
-            text = text + ", Negative prompt: " + str(p.negative_prompt)
-        
+            first_text = first_text + "Negative prompt: " + str(p.negative_prompt)
+
+        second_text = ""
         if steps_checkbox:
-            text = text + ", Steps: " + str(p.steps)
+            second_text = second_text + ", Steps: " + str(p.steps)
             
         if sampler_checkbox:
-            text = text + ", Sampler: " + str(p.sampler_name)
+            second_text = second_text + ", Sampler: " + str(p.sampler_name)
         
         if cfg_scale_checkbox:
-            text = text + ", CFG scale: " + str(p.cfg_scale)
+            second_text = second_text + ", CFG scale: " + str(p.cfg_scale)
         
         if seed_checkbox:
-            text = text + ", Seed: " + str(p.seed)
+            second_text = second_text + ", Seed: " + str(p.seed)
         
         if size_checkbox:
-            text = text + ", Size: " + str(p.width) + "x" + str(p.height)
+            second_text = second_text + ", Size: " + str(p.width) + "x" + str(p.height)
 
         if model_hash_checkbox:
-            text = text + ", Model hash: " + str( shared.sd_model.sd_model_hash )
+            second_text = second_text + ", Model hash: " + str( shared.sd_model.sd_model_hash )
             
         if model_checkbox:
-            text = text + ", Model : " + str(shared.sd_model.sd_checkpoint_info.model_name)
+            second_text = second_text + ", Model : " + str(shared.sd_model.sd_checkpoint_info.model_name)
         
-        text = text.strip()
-        text = text.strip(",")
-        text = text.strip()
+        first_text = first_text.strip()
+        first_text = first_text.strip()
         
-        return text
+        second_text = second_text.strip()
+        second_text = second_text.strip(",")
+        second_text = second_text.strip()
+        
+        if(first_text != "" and second_text != ""):
+            return first_text + "\n\n" + second_text
+        else:
+            return first_text + second_text
     
     def wrap_text(self, text, max_width, font, draw):
         lines = []
