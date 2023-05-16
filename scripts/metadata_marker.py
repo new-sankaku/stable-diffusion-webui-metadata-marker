@@ -12,7 +12,7 @@ import modules.shared as shared
 import png
 import io
 import numpy
-
+import matplotlib.font_manager
 
 class MetadataMarkerScript(scripts.Script):
 
@@ -76,11 +76,16 @@ class MetadataMarkerScript(scripts.Script):
             with gr.Row():
                 meta_data_display = gr.inputs.Dropdown(label="MetaData Display Position", choices=["Overlay", "Top", "Bottom", "Left", "Right"], default="Overlay")
                 font_size_input = gr.inputs.Textbox(lines=1, label='Font Size', default="")
-    
+
+
+                fonts_list = matplotlib.font_manager.findSystemFonts(fontpaths=None, fontext='ttf')
+                fonts_dict = {os.path.splitext(os.path.basename(font))[0]: font for font in fonts_list}
+                font_choice = gr.inputs.Dropdown(choices=sorted(list(fonts_dict.keys())), label='Font Choice')
+
         return [prompt_checkbox, negative_prompt_checkbox, steps_checkbox, 
                 sampler_checkbox, cfg_scale_checkbox, seed_checkbox, 
                 size_checkbox, model_checkbox, model_hash_checkbox, 
-                output_image_checkbox, meta_data_display, font_size_input]
+                output_image_checkbox, meta_data_display, font_size_input, font_choice]
     
 
 
@@ -93,7 +98,7 @@ class MetadataMarkerScript(scripts.Script):
     # The original function now calls the new functions for each task
     def postprocess_image(self, p, pp, prompt_checkbox, negative_prompt_checkbox, steps_checkbox, 
                           sampler_checkbox, cfg_scale_checkbox, seed_checkbox, size_checkbox, model_checkbox, model_hash_checkbox, output_image_checkbox, meta_data_display,
-                          font_size_input):
+                          font_size_input, font_choice):
     
         if not output_image_checkbox:
             return;
@@ -105,12 +110,16 @@ class MetadataMarkerScript(scripts.Script):
         
         draw = ImageDraw.Draw(image_copy)
         
-        font_path = self.get_font_path()
+        if not font_choice:
+            selected_font_path = self.get_font_path()
+        else:
+            fonts_list = matplotlib.font_manager.findSystemFonts(fontpaths=None, fontext='ttf')
+            fonts_dict = {os.path.splitext(os.path.basename(font))[0]: font for font in fonts_list}
+            selected_font_path = fonts_dict[font_choice]
+        
         imageSize = image_copy.width * image_copy.height
         fontSize = self.get_font_size(imageSize, font_size_input)
-
-        font = self.get_font(font_path, fontSize)
-        
+        font = self.get_font(selected_font_path, fontSize)
         text = self.construct_text(p, prompt_checkbox, negative_prompt_checkbox, steps_checkbox, 
                                    sampler_checkbox, cfg_scale_checkbox, seed_checkbox, size_checkbox, 
                                    model_checkbox, model_hash_checkbox, shared)

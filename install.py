@@ -10,3 +10,9 @@ if not launch.is_installed("pypng"):
 
 if not launch.is_installed("numpy"):
     launch.run_pip("install numpy", "requirements for metadata preservation")
+
+if not launch.is_installed("matplotlib"):
+    launch.run_pip("install matplotlib", "requirements for metadata preservation")
+    
+if not launch.is_installed("pillow"):
+    launch.run_pip("install pillow", "requirements for metadata preservation")
