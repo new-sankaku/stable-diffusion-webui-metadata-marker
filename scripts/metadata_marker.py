@@ -75,17 +75,26 @@ class MetadataMarkerScript(scripts.Script):
                 )
             with gr.Row():
                 meta_data_display = gr.inputs.Dropdown(label="MetaData Display Position", choices=["Overlay", "Top", "Bottom", "Left", "Right"], default="Overlay")
+
                 font_size_input = gr.inputs.Textbox(lines=1, label='Font Size', default="")
-
-
+                
                 fonts_list = matplotlib.font_manager.findSystemFonts(fontpaths=None, fontext='ttf')
                 fonts_dict = {os.path.splitext(os.path.basename(font))[0]: font for font in fonts_list}
                 font_choice = gr.inputs.Dropdown(choices=sorted(list(fonts_dict.keys())), label='Font Choice')
+                
+            with gr.Row():
+                font_color = gr.ColorPicker(value="#000000", label="font color")
+                background_color = gr.ColorPicker(value="#FFFFFF", label="background color")
+                opacity_slider = gr.inputs.Slider(minimum=0, maximum=255, default=180, label='Opacity')
 
-        return [prompt_checkbox, negative_prompt_checkbox, steps_checkbox, 
-                sampler_checkbox, cfg_scale_checkbox, seed_checkbox, 
-                size_checkbox, model_checkbox, model_hash_checkbox, 
-                output_image_checkbox, meta_data_display, font_size_input, font_choice]
+            with gr.Row():
+                footer_text_area = gr.inputs.Textbox(lines=4, label='footer text')
+                
+                return [prompt_checkbox, negative_prompt_checkbox, steps_checkbox, 
+                        sampler_checkbox, cfg_scale_checkbox, seed_checkbox, 
+                        size_checkbox, model_checkbox, model_hash_checkbox, 
+                        output_image_checkbox, meta_data_display, font_size_input, 
+                        font_choice, opacity_slider, font_color, background_color, footer_text_area]
     
 
 
@@ -98,8 +107,8 @@ class MetadataMarkerScript(scripts.Script):
     # The original function now calls the new functions for each task
     def postprocess_image(self, p, pp, prompt_checkbox, negative_prompt_checkbox, steps_checkbox, 
                           sampler_checkbox, cfg_scale_checkbox, seed_checkbox, size_checkbox, model_checkbox, model_hash_checkbox, output_image_checkbox, meta_data_display,
-                          font_size_input, font_choice):
-    
+                          font_size_input, font_choice, opacity_slider, font_color, background_color, footer_text_area):
+
         if not output_image_checkbox:
             return;
     
@@ -125,6 +134,12 @@ class MetadataMarkerScript(scripts.Script):
                                    model_checkbox, model_hash_checkbox, shared)
         
         max_width = image_copy.width
+        max_height = image_copy.height
+        
+        text = text + "\n\n" + footer_text_area 
+        text = text.strip()
+        text = text.strip()
+        
         text, linesize, max_line_length = self.wrap_text(text, max_width, font, draw)
         font_width, font_height = draw.textsize("A", font=font)
     
@@ -142,41 +157,31 @@ class MetadataMarkerScript(scripts.Script):
         if insufficient_height < 0:
             insufficient_height = 0
         
+        background_color_rgba = tuple(int(background_color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4)) + (opacity_slider,)
+        font_color_rgba = tuple(int(font_color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4)) + (255,)
+        
         if meta_data_display == "Top":
-            image_copy = ImageOps.expand(image_copy, border=(0, text_height, 0, 0), fill='white')
+            image_copy = ImageOps.expand(image_copy, border=(0, text_height, 0, 0), fill=background_color_rgba)
             y = 0
         elif meta_data_display == "Bottom":
-            image_copy = ImageOps.expand(image_copy, border=(0, 0, 0, text_height), fill='white')
+            image_copy = ImageOps.expand(image_copy, border=(0, 0, 0, text_height), fill=background_color_rgba)
             y_plus = text_height
         elif meta_data_display == "Left":
-            image_copy = ImageOps.expand(image_copy, border=(text_width, 0, 0, insufficient_height), fill='white')
+            image_copy = ImageOps.expand(image_copy, border=(text_width, 0, 0, insufficient_height), fill=background_color_rgba)
             y = 0
         elif meta_data_display == "Right":
-            image_copy = ImageOps.expand(image_copy, border=(0, 0, text_width, insufficient_height), fill='white')
+            image_copy = ImageOps.expand(image_copy, border=(0, 0, text_width, insufficient_height), fill=background_color_rgba)
             x_plus = text_width
             x = image_copy.width - text_width
             y = 0
         
-        text_image = Image.new('RGBA', image_copy.size, (255, 255, 255, 0))
+        text_image = Image.new('RGBA', image_copy.size, (255, 255, 255, 0), )
         draw = ImageDraw.Draw(text_image)
-
-        print()
-        print("max_line_length:" + str(max_line_length))
-        
-        
-        print("text_width:" + str(text_width))
-        print("text_height:" + str(text_height))
-        
-        print("x1:" + str(x))
-        print("y1:" + str(y))
-        print("x2:" + str((x + text_width)))
-        print("y2:" + str((y + text_height)))
         
         if meta_data_display == "Overlay":
-            draw.rectangle((x, y, x + text_width, y + text_height), fill=(255, 255, 255, 180))
+            draw.rectangle((x, y, max_width, max_height), fill=background_color_rgba)
         
-        
-        draw.text((x, y+y_plus), text, fill='black', font=font)
+        draw.text((x, y+y_plus), text, fill=font_color_rgba, font=font)
 
         image_copy = Image.alpha_composite(image_copy.convert('RGBA'), text_image)
     
@@ -282,32 +287,52 @@ class MetadataMarkerScript(scripts.Script):
             return first_text + second_text
     
     def wrap_text(self, text, max_width, font, draw):
+        paragraphs = text.split('\n')
         lines = []
-        line = ""
-        max_line_length = 0 
-        
-        for char in text:
-            temp_line = line + char
-            temp_width, temp_height = draw.textsize(temp_line, font=font)
+        max_line_length = 0
     
-            if char == '\n' or char == '\r\n':
-                lines.append(line)
-                line = ""
-            elif temp_width < max_width:
-                line = temp_line
-            else:
-                lines.append(line)
-                if len(line) > max_line_length: 
-                    max_line_length = len(line)
-                line = char
+        for paragraph in paragraphs:
+            words = paragraph.split()
+            if len(words) == 0:
+                words = [paragraph[i:i+1] for i in range(0, len(paragraph), 1)]
+            line = ""
     
-        lines.append(line)
-        if len(line) > max_line_length: 
-            max_line_length = len(line)
+            for word in words:
+                if line != "":
+                    temp_line = line + ' ' + word
+                else:
+                    temp_line = word
+                temp_width, temp_height = draw.textsize(temp_line, font=font)
     
-        # リストの長さ（行の数）を取得
+                if temp_width > max_width:
+                    if line == "":
+                        for char in word:
+                            temp_line = line + char
+                            temp_width, temp_height = draw.textsize(temp_line, font=font)
+                            if temp_width > max_width:
+                                lines.append(line)
+                                line = char
+                            else:
+                                line += char
+                    else:
+                        lines.append(line)
+                        line = word
+                    if len(line) > max_line_length: 
+                        max_line_length = len(line)
+                else:
+                    if line != "":
+                        line += ' ' + word
+                    else:
+                        line = word
+    
+            lines.append(line)
+            if len(line) > max_line_length: 
+                max_line_length = len(line)
+    
         num_lines = len(lines)
         
-        return "\n".join(lines), num_lines, max_line_length 
+        return "\n".join(lines), num_lines, max_line_length
+
+
 
     
