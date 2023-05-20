@@ -1,6 +1,3 @@
-Please click here for emergencies.
-https://twitter.com/hypersankaku2
-
 URL for extension's git repository
 https://github.com/new-sankaku/stable-diffusion-webui-metadata-marker.git
 
@@ -24,8 +21,6 @@ I will accommodate your request if possible.
 
 
 ---
-急用の際はこちらにお願いします。
-https://twitter.com/hypersankaku2
 tex2imgのExtensionです。
 
 出力する画像に生成時の情報を描画します。

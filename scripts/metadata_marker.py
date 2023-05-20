@@ -1,6 +1,12 @@
 import modules.scripts as scripts
 import gradio as gr
 import os
+import subprocess
+import modules.shared as shared
+import png
+import io
+import numpy
+import matplotlib.font_manager
 
 from PIL import Image, ImageDraw, ImageFont, PngImagePlugin, ImageOps
 from modules import images, script_callbacks
@@ -8,16 +14,16 @@ from modules.processing import process_images, Processed
 from modules.processing import Processed
 from modules.shared import opts, cmd_opts, state
 from datetime import datetime
-import modules.shared as shared
-import png
-import io
-import numpy
-import matplotlib.font_manager
 
 class MetadataMarkerScript(scripts.Script):
 
+    start_time = None
+
+    def __init__(self):
+        self.start_time = None
+
     def title(self):
-        return "Extension Template"
+        return "Extension Metadata Marker"
 
     # Decide to show menu in txt2img or img2img
     # - in "txt2img" -> is_img2img is `False`
@@ -26,6 +32,13 @@ class MetadataMarkerScript(scripts.Script):
     # below code always show extension menu
     def show(self, is_img2img):
         return scripts.AlwaysVisible
+    
+    def process(self, p, prompt_checkbox, negative_prompt_checkbox, steps_checkbox, 
+                          sampler_checkbox, cfg_scale_checkbox, seed_checkbox, size_checkbox, model_checkbox, model_hash_checkbox, output_image_checkbox, meta_data_display,
+                          font_size_input, font_choice, opacity_slider, font_color, background_color, footer_text_area, system_infomation_checkbox):
+        self.start_time = datetime.now()
+        
+        
     
     # Setup menu ui detail
     def ui(self, is_img2img):
@@ -48,11 +61,11 @@ class MetadataMarkerScript(scripts.Script):
                     True,
                     label="Steps"
                 )
+            with gr.Row():
                 sampler_checkbox = gr.Checkbox(
                     True,
                     label="Sampler"
                 )
-            with gr.Row():
                 cfg_scale_checkbox = gr.Checkbox(
                     True,
                     label="CFG scale"
@@ -61,6 +74,7 @@ class MetadataMarkerScript(scripts.Script):
                     True,
                     label="Seed"
                 )
+            with gr.Row():
                 size_checkbox = gr.Checkbox(
                     True,
                     label="Size"
@@ -74,7 +88,13 @@ class MetadataMarkerScript(scripts.Script):
                     label="Model hash"
                 )
             with gr.Row():
-                meta_data_display = gr.inputs.Dropdown(label="MetaData Display Position", choices=["Overlay", "Top", "Bottom", "Left", "Right"], default="Overlay")
+                system_infomation_checkbox = gr.Checkbox(
+                    True,
+                    label="System Information"
+                )
+            
+            with gr.Row():
+                meta_data_display = gr.inputs.Dropdown(label="MetaData Display Position", choices=["Overlay", "Overlay Center", "Top", "Bottom", "Left", "Right"], default="Overlay")
 
                 font_size_input = gr.inputs.Textbox(lines=1, label='Font Size', default="")
                 
@@ -94,7 +114,7 @@ class MetadataMarkerScript(scripts.Script):
                         sampler_checkbox, cfg_scale_checkbox, seed_checkbox, 
                         size_checkbox, model_checkbox, model_hash_checkbox, 
                         output_image_checkbox, meta_data_display, font_size_input, 
-                        font_choice, opacity_slider, font_color, background_color, footer_text_area]
+                        font_choice, opacity_slider, font_color, background_color, footer_text_area, system_infomation_checkbox]
     
 
 
@@ -107,11 +127,14 @@ class MetadataMarkerScript(scripts.Script):
     # The original function now calls the new functions for each task
     def postprocess_image(self, p, pp, prompt_checkbox, negative_prompt_checkbox, steps_checkbox, 
                           sampler_checkbox, cfg_scale_checkbox, seed_checkbox, size_checkbox, model_checkbox, model_hash_checkbox, output_image_checkbox, meta_data_display,
-                          font_size_input, font_choice, opacity_slider, font_color, background_color, footer_text_area):
+                          font_size_input, font_choice, opacity_slider, font_color, background_color, footer_text_area, system_infomation_checkbox):
 
         if not output_image_checkbox:
             return;
-    
+        
+        
+        
+        
         stream = io.BytesIO()
         pp.image.save(stream, format="PNG")
         stream_copy = io.BytesIO(stream.getvalue())
@@ -131,7 +154,7 @@ class MetadataMarkerScript(scripts.Script):
         font = self.get_font(selected_font_path, fontSize)
         text = self.construct_text(p, prompt_checkbox, negative_prompt_checkbox, steps_checkbox, 
                                    sampler_checkbox, cfg_scale_checkbox, seed_checkbox, size_checkbox, 
-                                   model_checkbox, model_hash_checkbox, shared)
+                                   model_checkbox, model_hash_checkbox, system_infomation_checkbox, shared)
         
         max_width = image_copy.width
         max_height = image_copy.height
@@ -140,7 +163,19 @@ class MetadataMarkerScript(scripts.Script):
         text = text.strip()
         text = text.strip()
         
-        text, linesize, max_line_length = self.wrap_text(text, max_width, font, draw)
+        large_size = 0
+        if image_copy.width > image_copy.height :
+            large_size = image_copy.width
+        else :
+            large_size = image_copy.height
+        
+        
+        if meta_data_display == "Left" or meta_data_display == "Right":
+            large_size = large_size/2 
+        else:
+            large_size = large_size = image_copy.width
+        
+        text, linesize, max_line_length = self.wrap_text(text, large_size, font, draw)
         font_width, font_height = draw.textsize("A", font=font)
     
         text_width, text_height = draw.textsize(text, font=font)
@@ -180,8 +215,25 @@ class MetadataMarkerScript(scripts.Script):
         
         if meta_data_display == "Overlay":
             draw.rectangle((x, y, max_width, max_height), fill=background_color_rgba)
-        
-        draw.text((x, y+y_plus), text, fill=font_color_rgba, font=font)
+            
+        if meta_data_display == "Overlay Center":
+            x = 0
+            y = (image_copy.height - text_height ) / 2
+            draw.rectangle((x, y, max_width, (y+text_height) ), fill=background_color_rgba)
+            lines = text.split("\n")
+            line_height = font.getsize("hg")[1]  # 行の高さを取得
+            
+            text_height = line_height * len(lines)  # テキスト全体の高さを計算
+            
+            y = (image_copy.height - text_height) // 2
+            
+            for line in lines:
+                line_width, line_height = draw.textsize(line, font=font)
+                x = (image_copy.width - line_width) // 2
+                draw.text((x, y), line, fill=font_color_rgba, font=font)
+                y += line_height  # 次の行に移動        
+        else:
+            draw.text((x, y+y_plus), text, fill=font_color_rgba, font=font)
 
         image_copy = Image.alpha_composite(image_copy.convert('RGBA'), text_image)
     
@@ -244,7 +296,9 @@ class MetadataMarkerScript(scripts.Script):
     
     # Function to construct the text string based on checkboxes
     def construct_text(self, p, prompt_checkbox, negative_prompt_checkbox, steps_checkbox, 
-                          sampler_checkbox, cfg_scale_checkbox, seed_checkbox, size_checkbox, model_checkbox, model_hash_checkbox, shared):
+                          sampler_checkbox, cfg_scale_checkbox, seed_checkbox, size_checkbox, model_checkbox, model_hash_checkbox, system_infomation_checkbox, shared):
+        end_time = datetime.now()
+        
         first_text = ""
         if prompt_checkbox:
             first_text = first_text + "Prompt: " + str(p.prompt) + "\n\n"
@@ -272,7 +326,19 @@ class MetadataMarkerScript(scripts.Script):
             second_text = second_text + ", Model hash: " + str( shared.sd_model.sd_model_hash )
             
         if model_checkbox:
-            second_text = second_text + ", Model : " + str(shared.sd_model.sd_checkpoint_info.model_name)
+            second_text = second_text + ", Model: " + str(shared.sd_model.sd_checkpoint_info.model_name)
+        
+        third_text = ""
+        if system_infomation_checkbox:
+            gpu_info = self.get_gpu_info()
+            if gpu_info:
+                output_string = '\n'.join([f'GPU: {x[0]}, Total: {x[1]}MB' for x in gpu_info])
+            else:
+                output_string = 'GPU unknown'
+                
+            third_text = third_text + ", " + output_string
+            time_difference = self.calculate_time_difference(self.start_time, end_time)
+            third_text = third_text + ", Time taken: " + str(time_difference) + "s, "
         
         first_text = first_text.strip()
         first_text = first_text.strip()
@@ -281,58 +347,108 @@ class MetadataMarkerScript(scripts.Script):
         second_text = second_text.strip(",")
         second_text = second_text.strip()
         
-        if(first_text != "" and second_text != ""):
-            return first_text + "\n\n" + second_text
+        third_text = third_text.strip()
+        third_text = third_text.strip(",")
+        third_text = third_text.strip()
+        
+        resultText = ""
+        if(first_text != ""):
+            resultText = first_text
+            
+        if(second_text != "" and resultText != ""):
+            resultText = resultText + "\n" + second_text
+        elif(second_text != ""):
+            resultText = second_text
+            
+        if(third_text != "" and resultText != ""):
+            resultText = resultText + "\n" + third_text
+        elif(third_text != ""):
+            resultText = third_text
+        
+        return resultText
+
+    def calculate_time_difference(self, start_time, end_time):
+        time_difference = end_time - self.start_time 
+        seconds = round(time_difference.total_seconds(), 1)
+        return seconds
+    
+    def get_gpu_info(self):
+        _output_to_list = lambda x: x.decode('ascii').split('\n')[:-1]
+    
+        COMMAND = "nvidia-smi --query-gpu=name,memory.total,memory.used,memory.free --format=csv,noheader"
+    
+        try:
+            gpu_output = _output_to_list(subprocess.check_output(COMMAND.split()))
+            gpu_output = [x.split(',') for x in gpu_output]
+            gpu_info = []
+            for x in gpu_output:
+                name = x[0]
+                total_memory = int(x[1].split()[0])
+                used_memory = int(x[2].split()[0])
+                free_memory = int(x[3].split()[0])
+                gpu_info.append((name, total_memory, used_memory, free_memory))
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            gpu_info = []  # エラー時は空のリストを返す
+    
+        return gpu_info
+        
+    def add_line(self, line, line_list, max_line_length, update_max_length=True):
+        if line:  # Check if line is not empty
+            line_list.append(line)
+            if update_max_length and len(line) > max_line_length:
+                max_line_length = len(line)
+        return "", max_line_length
+    
+    def check_width(self, line, word, space_separated, max_width, font, draw):
+        if space_separated and line:
+            temp_line = f"{line} {word}"
         else:
-            return first_text + second_text
+            temp_line = f"{line}{word}"
+        temp_width, _ = draw.textsize(temp_line, font=font)
+        return temp_line if temp_width <= max_width else None
+    
+    def word_to_char(self, line, word, lines, max_line_length, max_width, font, draw):
+        for char in word:
+            temp_line = self.check_width(line, char, False, max_width, font, draw)
+            if temp_line:
+                line = temp_line
+            else:
+                line, max_line_length = self.add_line(line, lines, max_line_length, update_max_length=False)
+                line += char
+        return line, max_line_length
     
     def wrap_text(self, text, max_width, font, draw):
         paragraphs = text.split('\n')
         lines = []
         max_line_length = 0
+        double_newline = False  # 追加: 2行続きの改行を保持するフラグ
     
         for paragraph in paragraphs:
-            words = paragraph.split()
-            if len(words) == 0:
-                words = [paragraph[i:i+1] for i in range(0, len(paragraph), 1)]
+            space_separated = ' ' in paragraph
+            words = paragraph.split() if space_separated else list(paragraph)
             line = ""
-    
             for word in words:
-                if line != "":
-                    temp_line = line + ' ' + word
+                temp_line = self.check_width(line, word, space_separated, max_width, font, draw)
+                if temp_line:
+                    line = temp_line
                 else:
-                    temp_line = word
-                temp_width, temp_height = draw.textsize(temp_line, font=font)
-    
-                if temp_width > max_width:
-                    if line == "":
-                        for char in word:
-                            temp_line = line + char
-                            temp_width, temp_height = draw.textsize(temp_line, font=font)
-                            if temp_width > max_width:
-                                lines.append(line)
-                                line = char
-                            else:
-                                line += char
+                    line, max_line_length = self.add_line(line, lines, max_line_length)
+                    temp_line = self.check_width(line, word, space_separated, max_width, font, draw)
+                    if temp_line:
+                        line = temp_line
                     else:
-                        lines.append(line)
-                        line = word
-                    if len(line) > max_line_length: 
-                        max_line_length = len(line)
-                else:
-                    if line != "":
-                        line += ' ' + word
-                    else:
-                        line = word
+                        line, max_line_length = self.word_to_char(line, word, lines, max_line_length, max_width, font, draw)
     
-            lines.append(line)
-            if len(line) > max_line_length: 
-                max_line_length = len(line)
+            if line:  # Check if line is not empty before adding
+                line, max_line_length = self.add_line(line, lines, max_line_length)
+                if double_newline:  # 追加: 2行続きの改行を保持する場合
+                    lines.append("")  # 空行を追加
+                    double_newline = False
+            elif not double_newline:  # 追加: 空行が続いていない場合
+                lines.append("")  # 空行を追加
+                double_newline = True  # 2行続きの改行を保持するフラグを立てる
     
         num_lines = len(lines)
-        
         return "\n".join(lines), num_lines, max_line_length
 
 
-
-    

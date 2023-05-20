@@ -16,3 +16,4 @@ if not launch.is_installed("matplotlib"):
     
 if not launch.is_installed("pillow"):
     launch.run_pip("install pillow", "requirements for metadata preservation")
+
