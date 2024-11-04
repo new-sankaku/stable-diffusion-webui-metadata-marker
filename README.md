@@ -1,3 +1,5 @@
+[English](https://github.com/new-sankaku/stable-diffusion-webui-metadata-marker/blob/main/README_EN.md) | [中文](https://github.com/new-sankaku/stable-diffusion-webui-metadata-marker/blob/main/README_CN.md) | [日本語](https://github.com/new-sankaku/stable-diffusion-webui-metadata-marker/blob/main/README_JP.md)
+
 # WebUIまたはForge用エクステンション
 
 このエクステンションは、WebUIおよびForge（Gradio更新版も含む）で動作します。画面上にMetaデータ機能を上書き表示する機能を提供します。
