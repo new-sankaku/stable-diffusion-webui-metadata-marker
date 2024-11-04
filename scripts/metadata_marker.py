@@ -33,9 +33,7 @@ class MetadataMarkerScript(scripts.Script):
     def show(self, is_img2img):
         return scripts.AlwaysVisible
     
-    def process(self, p, prompt_checkbox, negative_prompt_checkbox, steps_checkbox, 
-                          sampler_checkbox, cfg_scale_checkbox, seed_checkbox, size_checkbox, model_checkbox, model_hash_checkbox, output_image_checkbox, meta_data_display,
-                          font_size_input, font_choice, opacity_slider, font_color, background_color, footer_text_area, system_infomation_checkbox):
+    def process(self, p, *args_):
         self.start_time = datetime.now()
         
         
@@ -54,29 +52,29 @@ class MetadataMarkerScript(scripts.Script):
                     label="Prompt"
                 )
                 negative_prompt_checkbox = gr.Checkbox(
-                    True,
+                    False,
                     label="Negative prompt"
                 )
                 steps_checkbox = gr.Checkbox(
-                    True,
+                    False,
                     label="Steps"
                 )
             with gr.Row():
                 sampler_checkbox = gr.Checkbox(
-                    True,
+                    False,
                     label="Sampler"
                 )
                 cfg_scale_checkbox = gr.Checkbox(
-                    True,
+                    False,
                     label="CFG scale"
                 )
                 seed_checkbox = gr.Checkbox(
-                    True,
+                    False,
                     label="Seed"
                 )
             with gr.Row():
                 size_checkbox = gr.Checkbox(
-                    True,
+                    False,
                     label="Size"
                 )
                 model_checkbox = gr.Checkbox(
@@ -84,50 +82,143 @@ class MetadataMarkerScript(scripts.Script):
                     label="Model"
                 )
                 model_hash_checkbox = gr.Checkbox(
-                    True,
+                    False,
                     label="Model hash"
                 )
             with gr.Row():
                 system_infomation_checkbox = gr.Checkbox(
-                    True,
+                    False,
                     label="System Information"
                 )
             
             with gr.Row():
-                meta_data_display = gr.inputs.Dropdown(label="MetaData Display Position", choices=["Overlay", "Overlay Center", "Top", "Bottom", "Left", "Right"], default="Overlay")
-
-                font_size_input = gr.inputs.Textbox(lines=1, label='Font Size', default="")
+                import pkg_resources
+                gradio_version = pkg_resources.get_distribution('gradio').version
                 
-                fonts_list = matplotlib.font_manager.findSystemFonts(fontpaths=None, fontext='ttf')
-                fonts_dict = {os.path.splitext(os.path.basename(font))[0]: font for font in fonts_list}
-                font_choice = gr.inputs.Dropdown(choices=sorted(list(fonts_dict.keys())), label='Font Choice')
-                
+                if pkg_resources.parse_version(gradio_version) < pkg_resources.parse_version('3.0'):
+                    meta_data_display = gr.inputs.Dropdown(
+                        label="MetaData Display Position",
+                        choices=["Overlay", "Overlay Center", "Top", "Bottom", "Left", "Right"],
+                        default="Overlay"
+                    )
+                    
+                    font_size_input = gr.inputs.Textbox(
+                        lines=1,
+                        label='Font Size',
+                        default=""
+                    )
+                    
+                    fonts_list = matplotlib.font_manager.findSystemFonts(fontpaths=None, fontext='ttf')
+                    fonts_dict = {os.path.splitext(os.path.basename(font))[0]: font for font in fonts_list}
+                    font_choice = gr.inputs.Dropdown(
+                        choices=sorted(list(fonts_dict.keys())),
+                        label='Font Choice'
+                    )
+                else:
+                    meta_data_display = gr.Dropdown(
+                        label="MetaData Display Position",
+                        choices=["Overlay", "Overlay Center", "Top", "Bottom", "Left", "Right"],
+                        value="Overlay"
+                    )
+                    
+                    font_size_input = gr.Textbox(
+                        label='Font Size',
+                        value="",
+                        lines=1
+                    )
+                    
+                    fonts_list = matplotlib.font_manager.findSystemFonts(fontpaths=None, fontext='ttf')
+                    fonts_dict = {os.path.splitext(os.path.basename(font))[0]: font for font in fonts_list}
+                    font_choice = gr.Dropdown(
+                        choices=sorted(list(fonts_dict.keys())),
+                        label='Font Choice'
+                    )
+                    
             with gr.Row():
-                font_color = gr.ColorPicker(value="#000000", label="font color")
-                background_color = gr.ColorPicker(value="#FFFFFF", label="background color")
-                opacity_slider = gr.inputs.Slider(minimum=0, maximum=255, default=180, label='Opacity')
+                if pkg_resources.parse_version(gradio_version) < pkg_resources.parse_version('3.0'):
+                    font_color = gr.ColorPicker(
+                        value="#000000",
+                        label="font color"
+                    )
+                    background_color = gr.ColorPicker(
+                        value="#FFFFFF",
+                        label="background color"
+                    )
+                    opacity_slider = gr.inputs.Slider(
+                        minimum=0,
+                        maximum=255,
+                        default=180,
+                        label='Opacity'
+                    )
+                    
+                    footer_text_area = gr.inputs.Textbox(
+                        lines=4,
+                        label='footer text'
+                    )
+                else:
+                    font_color = gr.ColorPicker(
+                        value="#000000",
+                        label="font color"
+                    )
+                    background_color = gr.ColorPicker(
+                        value="#FFFFFF",
+                        label="background color"
+                    )
+                    opacity_slider = gr.Slider(
+                        minimum=0,
+                        maximum=255,
+                        value=180,
+                        label='Opacity'
+                    )
+                    
+                    footer_text_area = gr.Textbox(
+                        label='footer text',
+                        lines=4
+                    )
 
-            with gr.Row():
-                footer_text_area = gr.inputs.Textbox(lines=4, label='footer text')
-                
-                return [prompt_checkbox, negative_prompt_checkbox, steps_checkbox, 
-                        sampler_checkbox, cfg_scale_checkbox, seed_checkbox, 
-                        size_checkbox, model_checkbox, model_hash_checkbox, 
-                        output_image_checkbox, meta_data_display, font_size_input, 
-                        font_choice, opacity_slider, font_color, background_color, footer_text_area, system_infomation_checkbox]
-    
+            return [prompt_checkbox, 
+                    negative_prompt_checkbox, 
+                    steps_checkbox, 
+                    sampler_checkbox, 
+                    cfg_scale_checkbox, 
+                    seed_checkbox, 
+                    size_checkbox, 
+                    model_checkbox, 
+                    model_hash_checkbox, 
+                    output_image_checkbox, 
+                    meta_data_display, 
+                    font_size_input, 
+                    font_choice, 
+                    opacity_slider, 
+                    font_color, 
+                    background_color, 
+                    footer_text_area, 
+                    system_infomation_checkbox]
 
+    def postprocess_image(self, p, pp, *args_):
 
+        print("Debug - Length of args_:", len(args_))
+        print("Debug - Contents of args_:", args_)
 
+        prompt_checkbox = args_[0]
+        negative_prompt_checkbox = args_[1]
+        steps_checkbox = args_[2]
+        sampler_checkbox = args_[3]
+        cfg_scale_checkbox = args_[4]
+        seed_checkbox = args_[5]
+        size_checkbox = args_[6]
+        model_checkbox = args_[7]
+        model_hash_checkbox = args_[8]
+        output_image_checkbox = args_[9]
+        meta_data_display = args_[10]
+        font_size_input = args_[11]
+        font_choice = args_[12]
+        opacity_slider = args_[13]
+        font_color = args_[14]
+        background_color = args_[15]
+        footer_text_area = args_[16]
+        system_infomation_checkbox = args_[17]
 
-
-
-    #p  is StableDiffusionProcessing
-    #pp is PostprocessImageArgs
-    # The original function now calls the new functions for each task
-    def postprocess_image(self, p, pp, prompt_checkbox, negative_prompt_checkbox, steps_checkbox, 
-                          sampler_checkbox, cfg_scale_checkbox, seed_checkbox, size_checkbox, model_checkbox, model_hash_checkbox, output_image_checkbox, meta_data_display,
-                          font_size_input, font_choice, opacity_slider, font_color, background_color, footer_text_area, system_infomation_checkbox):
 
         if not output_image_checkbox:
             return;
@@ -152,9 +243,7 @@ class MetadataMarkerScript(scripts.Script):
         imageSize = image_copy.width * image_copy.height
         fontSize = self.get_font_size(imageSize, font_size_input)
         font = self.get_font(selected_font_path, fontSize)
-        text = self.construct_text(p, prompt_checkbox, negative_prompt_checkbox, steps_checkbox, 
-                                   sampler_checkbox, cfg_scale_checkbox, seed_checkbox, size_checkbox, 
-                                   model_checkbox, model_hash_checkbox, system_infomation_checkbox, shared)
+        text = self.construct_text(p, *args_)
         
         max_width = image_copy.width
         max_height = image_copy.height
@@ -295,8 +384,27 @@ class MetadataMarkerScript(scripts.Script):
         return font
     
     # Function to construct the text string based on checkboxes
-    def construct_text(self, p, prompt_checkbox, negative_prompt_checkbox, steps_checkbox, 
-                          sampler_checkbox, cfg_scale_checkbox, seed_checkbox, size_checkbox, model_checkbox, model_hash_checkbox, system_infomation_checkbox, shared):
+    def construct_text(self, p, *args_):
+        # args_[0] から順番に値を取り出す
+        prompt_checkbox = args_[0]
+        negative_prompt_checkbox = args_[1]
+        steps_checkbox = args_[2]
+        sampler_checkbox = args_[3]
+        cfg_scale_checkbox = args_[4]
+        seed_checkbox = args_[5]
+        size_checkbox = args_[6]
+        model_checkbox = args_[7]
+        model_hash_checkbox = args_[8]
+        output_image_checkbox = args_[9]
+        meta_data_display = args_[10]
+        font_size_input = args_[11]
+        font_choice = args_[12]
+        opacity_slider = args_[13]
+        font_color = args_[14]
+        background_color = args_[15]
+        footer_text_area = args_[16]
+        system_infomation_checkbox = args_[17]
+
         end_time = datetime.now()
         
         first_text = ""
